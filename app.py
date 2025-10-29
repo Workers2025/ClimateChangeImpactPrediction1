@@ -129,6 +129,9 @@ if option == 'Automatic Live Prediction':
             humidity = current['humidity']
             pressure = current['pressure_mb']
             temperature = current['temp_c']
+            condition = current['condition']['text']
+            wind_speed = current['wind_kph']
+            precip_mm = current.get('precip_mm', 0)
             date_now = datetime.now()
 
             col1, col2, col3 = st.columns(3)
@@ -213,6 +216,38 @@ if option == 'Automatic Live Prediction':
                                  title=f"📅 Predicted Temperature Trend for Next 3 Days in {city}",
                                  markers=True, template="plotly_dark")
             st.plotly_chart(fig_future, use_container_width=True)
+
+            # ==============================
+            # 🌧️ WEATHER CONDITION DASHBOARD (Rain, Wind, etc.)
+            # ==============================
+            st.subheader("☔ Current Weather Condition Dashboard")
+
+            colA, colB, colC = st.columns(3)
+            colA.metric("🌧️ Rainfall", f"{precip_mm} mm")
+            colB.metric("💨 Wind Speed", f"{wind_speed} km/h")
+            colC.metric("🌤️ Condition", condition)
+
+            fig_cond = go.Figure()
+            fig_cond.add_trace(go.Indicator(
+                mode="number",
+                value=precip_mm,
+                title={"text": "Rainfall (mm)"},
+                domain={'x': [0, 0.3], 'y': [0, 1]}
+            ))
+            fig_cond.add_trace(go.Indicator(
+                mode="number",
+                value=wind_speed,
+                title={"text": "Wind Speed (km/h)"},
+                domain={'x': [0.35, 0.65], 'y': [0, 1]}
+            ))
+            fig_cond.add_trace(go.Indicator(
+                mode="number",
+                value=humidity,
+                title={"text": "Humidity (%)"},
+                domain={'x': [0.7, 1], 'y': [0, 1]}
+            ))
+            fig_cond.update_layout(title=f"🌦️ Weather Summary for {city}", height=300)
+            st.plotly_chart(fig_cond, use_container_width=True)
 
         else:
             st.error("Failed to fetch live weather data. Please try again.")
