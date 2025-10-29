@@ -1,6 +1,6 @@
 import streamlit as st
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import folium
 from streamlit_folium import st_folium
@@ -50,7 +50,7 @@ except Exception as e:
         df.columns = df.columns.str.strip()
         df = df.fillna(0)
         for col in df.columns:
-            if df[col].astype(str).str.contains(r'\d{8}-\d{2}:\d{2}', regex=True).any():
+            if df[col].astype(str).str.contains(r'\\d{8}-\\d{2}:\\d{2}', regex=True).any():
                 st.write(f"🕒 Converting datetime column: {col}")
                 df[col] = pd.to_datetime(df[col], errors='coerce')
                 df['year'] = df[col].dt.year
@@ -165,7 +165,7 @@ if option == 'Automatic Live Prediction':
                          template="plotly_dark")
             st.plotly_chart(fig, use_container_width=True)
 
-            # Extra chart: Gauge temperature
+            # --- Temperature Gauge ---
             fig_gauge = go.Figure(go.Indicator(
                 mode="gauge+number+delta",
                 value=temperature,
@@ -174,9 +174,48 @@ if option == 'Automatic Live Prediction':
                 delta={'reference': 30, 'increasing': {'color': "red"}}
             ))
             st.plotly_chart(fig_gauge, use_container_width=True)
+
+            # ==============================
+            # 🌤️ FUTURE 3-DAY PREDICTION ADDED HERE
+            # ==============================
+            st.subheader("🔮 3-Day Future Climate Impact Prediction")
+
+            future_dates = [date_now + timedelta(days=i) for i in range(1, 4)]
+            future_data = []
+            for d in future_dates:
+                temp_future = temperature + np.random.uniform(-1.5, 1.5)
+                humidity_future = humidity + np.random.uniform(-5, 5)
+                pressure_future = pressure + np.random.uniform(-2, 2)
+                new_row = np.array([[dew_point, fog, hail, heat_index, humidity_future,
+                                     pressure_future, temp_future, d.year, d.month, d.day]])
+                if hasattr(model, "feature_names_in_"):
+                    df_input = pd.DataFrame(new_row, columns=[
+                        '_dewptm', '_fog', '_hail', '_heatindexm', '_hum',
+                        '_pressurem', '_tempm', 'year', 'month', 'day'
+                    ])
+                    df_input = df_input.reindex(columns=model.feature_names_in_, fill_value=0)
+                    pred = model.predict(df_input)[0]
+                else:
+                    pred = model.predict(new_row)[0]
+                future_data.append({
+                    "Date": d.strftime("%Y-%m-%d"),
+                    "Predicted Temp (°C)": round(temp_future, 2),
+                    "Predicted Humidity (%)": round(humidity_future, 2),
+                    "Predicted Pressure (mb)": round(pressure_future, 2),
+                    "Climate Impact": int(pred)
+                })
+
+            df_future = pd.DataFrame(future_data)
+            st.dataframe(df_future, use_container_width=True)
+
+            # Future trend chart
+            fig_future = px.line(df_future, x="Date", y="Predicted Temp (°C)",
+                                 title=f"📅 Predicted Temperature Trend for Next 3 Days in {city}",
+                                 markers=True, template="plotly_dark")
+            st.plotly_chart(fig_future, use_container_width=True)
+
         else:
             st.error("Failed to fetch live weather data. Please try again.")
-
 
 # === MAP MODE ===
 elif option == 'Interactive Climate Risk Map':
